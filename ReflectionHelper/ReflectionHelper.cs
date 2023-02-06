@@ -6,7 +6,7 @@ namespace ReflectionHelper
     public static class ReflectionHelper
     {
         private static readonly ConcurrentDictionary<string, MethodInfo> _dictMethodInfos = new ConcurrentDictionary<string, MethodInfo>();
-        private static readonly ConcurrentDictionary<string, Type> _dictTypes = new ConcurrentDictionary<string, Type>();
+        private static readonly ConcurrentDictionary<string, TypeInfo> _dictTypes = new ConcurrentDictionary<string, TypeInfo>();
 
         private static readonly Lazy<IEnumerable<Assembly>> _assemblies = new Lazy<IEnumerable<Assembly>>(() => AppDomain
             .CurrentDomain.GetAssemblies()
@@ -23,29 +23,29 @@ namespace ReflectionHelper
             return ActivatorUtilities.CreateInstance(serviceProvider, instanceType, parameters);
         }
 
-        public static Type GetTypeByName(string typeName)
+        public static TypeInfo GetTypeByName(string typeName)
         {
             return _dictTypes.GetOrAdd(typeName, (name) =>
             {
                 return
                     _assemblies.Value
                         .Select(assembly => assembly.GetType(name))
-                        .FirstOrDefault(t => t != null)
+                        .FirstOrDefault(t => t != null)?.GetTypeInfo()
                     // Safely delete the following part
                     // if you do not want fall back to first partial result
                     ??
                     _assemblies.Value
                         .SelectMany(assembly => assembly.GetTypes())
-                        .FirstOrDefault(t => t.Name.Contains(name));
+                        .FirstOrDefault(t => t.Name.Contains(name)).GetTypeInfo();
             });
         }
 
-        public static MethodInfo GetMethodInfo(Type type, string methodName)
+        public static MethodInfo GetMethodInfo(TypeInfo typeinfo, string methodName)
         {
-            var methodKey = GetMethodInfoKey(nameof(type), methodName);
+            var methodKey = GetMethodInfoKey(nameof(typeinfo), methodName);
             return _dictMethodInfos.GetOrAdd(methodKey, (method) =>
             {
-                return type.GetMethod(methodName);
+                return typeinfo.GetDeclaredMethod(methodName);
             });
         }
 
